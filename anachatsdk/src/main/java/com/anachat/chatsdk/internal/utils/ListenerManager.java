@@ -1,10 +1,12 @@
 package com.anachat.chatsdk.internal.utils;
 
+import android.content.Context;
 import android.content.Intent;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 
+import com.anachat.chatsdk.CustomMethodListener;
 import com.anachat.chatsdk.LocationPickListener;
 import com.anachat.chatsdk.MessageListener;
 import com.anachat.chatsdk.internal.model.Message;
@@ -21,6 +23,7 @@ import static android.content.ContentValues.TAG;
 public class ListenerManager {
     private Set<MessageListener> mChatMessageListeners = new HashSet<>();
     private Set<LocationPickListener> mLocationListeners = new HashSet<>();
+    private Set<CustomMethodListener> mCustomMethodListeners = new HashSet<>();
 
 
     private static volatile ListenerManager instance;
@@ -47,6 +50,11 @@ public class ListenerManager {
 
     public void addMessageChangeListener(LocationPickListener messageListener) {
         mLocationListeners.add(messageListener);
+    }
+
+    public void addCustomMethodListener(CustomMethodListener customMethodListener) {
+        mCustomMethodListeners.clear();
+        mCustomMethodListeners.add(customMethodListener);
     }
 
     public void removeChatMessageListener(MessageListener messageListener) {
@@ -129,5 +137,11 @@ public class ListenerManager {
                 messageListener.sendLocation(intent);
             }
         });
+    }
+
+    public void callCustomMethod(Context context, String url, String title, String value) {
+            for (CustomMethodListener methodListener : mCustomMethodListeners) {
+                methodListener.implementCustomMethod(context, url, title, value);
+            }
     }
 }

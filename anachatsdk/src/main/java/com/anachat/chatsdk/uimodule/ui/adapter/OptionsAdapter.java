@@ -4,17 +4,21 @@ package com.anachat.chatsdk.uimodule.ui.adapter;
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
+import android.os.Build;
 import android.support.v7.widget.RecyclerView;
 import android.text.Html;
+import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
 import com.anachat.chatsdk.internal.database.PreferencesManager;
+import com.anachat.chatsdk.internal.model.Event;
 import com.anachat.chatsdk.internal.model.Message;
 import com.anachat.chatsdk.internal.model.MessageResponse;
 import com.anachat.chatsdk.internal.model.Option;
+import com.anachat.chatsdk.internal.utils.ListenerManager;
 import com.anachat.chatsdk.internal.utils.constants.Constants;
 import com.anachat.chatsdk.library.R;
 import com.anachat.chatsdk.uimodule.chatuikit.commons.ImageLoader;
@@ -30,6 +34,7 @@ public class OptionsAdapter extends RecyclerView.Adapter<OptionsAdapter.MyViewHo
 
     private List<Option> optionList;
     private Context context;
+    private Context mContext;
     private Message message;
     private ImageLoader imageLoader;
 
@@ -43,8 +48,9 @@ public class OptionsAdapter extends RecyclerView.Adapter<OptionsAdapter.MyViewHo
     }
 
 
-    public OptionsAdapter(ImageLoader imageLoader) {
+    public OptionsAdapter(ImageLoader imageLoader, Context context) {
         this.context = imageLoader.getContext();
+        this.mContext = context;
         this.imageLoader = imageLoader;
         optionList = new ArrayList<>();
     }
@@ -75,13 +81,17 @@ public class OptionsAdapter extends RecyclerView.Adapter<OptionsAdapter.MyViewHo
         drawable.setColor(Color.parseColor(PreferencesManager.getsInstance(context).getThemeColor()));
         drawable.setStroke(3,
                 Color.parseColor(PreferencesManager.getsInstance(context).getThemeColor()));
-        holder.itemView.setBackground(drawable);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+            holder.itemView.setBackground(drawable);
+        }else{
+            holder.itemView.setBackgroundDrawable(drawable);
+        }
         final Option option = optionList.get(position);
         if (option.getTitle() != null &&
                 !option.getTitle().trim().isEmpty()) {
             String text = option.getTitle().trim().
                     replaceAll("\\n?\n", "<br>");
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 holder.title.setText(Html.fromHtml(text.trim(),
                         Html.FROM_HTML_MODE_LEGACY));
             } else {
@@ -91,6 +101,8 @@ public class OptionsAdapter extends RecyclerView.Adapter<OptionsAdapter.MyViewHo
             holder.title.setText(option.getTitle());
         }
 
+        holder.title.setTextColor(PreferencesManager.getsInstance(holder.title.getContext())
+        .getOptionsTextColor());
 
         holder.itemView.setOnClickListener(view -> {
             String value = option.getValue();
@@ -107,15 +119,28 @@ public class OptionsAdapter extends RecyclerView.Adapter<OptionsAdapter.MyViewHo
                     e.printStackTrace();
                 }
             }
-            message.getMessageInput().setMandatory(Constants.FCMConstants.MANDATORY_TRUE);
-            MessageResponse.MessageResponseBuilder responseBuilder
-                    = new MessageResponse.MessageResponseBuilder
-                    (context.getApplicationContext().getApplicationContext());
-            MessageResponse messageResponse = responseBuilder.inputTextString(value,
-                    message)
-                    .build();
-            messageResponse.getData().getContent().getInput().setText(option.getTitle());
-            messageResponse.send();
+            else if (option.getType() == 3) {
+                try {
+                    JSONObject jsonObject = new JSONObject(option.getValue());
+                    if (jsonObject.has("url")) {
+                        value = jsonObject.getString("value");
+                        ListenerManager.getInstance().callCustomMethod(mContext, jsonObject.getString("url"), option.getTitle(), value);
+                    }
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+            if(option.getType() != 3) {
+                message.getMessageInput().setMandatory(Constants.FCMConstants.MANDATORY_TRUE);
+                MessageResponse.MessageResponseBuilder responseBuilder
+                        = new MessageResponse.MessageResponseBuilder
+                        (context.getApplicationContext().getApplicationContext());
+                MessageResponse messageResponse = responseBuilder.inputTextString(value,
+                        message)
+                        .build();
+                messageResponse.getData().getContent().getInput().setText(option.getTitle());
+                messageResponse.send();
+            }
         });
     }
 

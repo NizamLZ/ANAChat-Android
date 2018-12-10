@@ -2,6 +2,9 @@ package com.anachat.chatsdk.internal.database;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.support.annotation.ColorRes;
+
+import com.anachat.chatsdk.library.R;
 
 /**
  * Created by lookup on 12/10/17.
@@ -19,9 +22,12 @@ public class PreferencesManager {
     private static final String FCM_TOKEN = "com.ana.sdk.fcm_token";
     private static final String BASE_URL = "com.ana.sdk.base_url";
     private static final String EVENTS_DATA = "com.ana.sdk.events.data";
+    private static final String DEEPLINK_EVENTS_DATA = "com.ana.sdk.deeplink.events.data";
     private static final String IS_HISTORY_SYNCED = "com.ana.sdk.history_sync";
     private static final String URL_Status = "com.ana.sdk.url_browser";
     private static final String FLOW_ID = "com.ana.sdk.flow_id";
+    private static final String ANIMATION_DELAY = "com.ana.sdk.animation_delay";
+    private static final String OPTIONS_TEXT_COLOR = "com.ana.sdk.options.text.color";
 
     private static PreferencesManager sInstance;
     private final SharedPreferences mPref;
@@ -159,7 +165,6 @@ public class PreferencesManager {
         return mPref.getString(EVENTS_DATA, "");
     }
 
-
     public Boolean getUrlStatus() {
         return mPref.getBoolean(URL_Status, true);
     }
@@ -169,6 +174,23 @@ public class PreferencesManager {
                 .putBoolean(URL_Status, value)
                 .apply();
     }
+
+    public void setOptionsTextColor(@ColorRes int optionTextColor) {
+        mPref.edit()
+                .putInt(OPTIONS_TEXT_COLOR , optionTextColor)
+                .apply();
+    }
+
+    public int getOptionsTextColor(){ return mPref.getInt(OPTIONS_TEXT_COLOR , R.color.white);}
+
+    public void setAnimationBubbleDelay(int value) {
+
+        mPref.edit()
+                .putInt(ANIMATION_DELAY , value)
+                .apply();
+    }
+
+    public int getAnimationBubbleDelay(){   return mPref.getInt(ANIMATION_DELAY , 1000) ;  }
 
     public boolean clear() {
         return mPref.edit()

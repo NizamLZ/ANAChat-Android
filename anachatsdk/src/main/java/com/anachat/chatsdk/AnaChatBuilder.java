@@ -1,12 +1,13 @@
 package com.anachat.chatsdk;
 
 /**
- * Created by lookup on 16/10/17.
+ * Created by nowfloats on 16/10/17.
  */
 
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
+import android.support.annotation.ColorRes;
 import android.support.annotation.NonNull;
 import android.util.Log;
 
@@ -68,14 +69,31 @@ public class AnaChatBuilder {
         return this;
     }
 
+    public AnaChatBuilder registerCustomMethodListener(CustomMethodListener customMethodListener) {
+        AnaCore.addCustomMethodListener(customMethodListener);
+        return this;
+    }
+
     public AnaChatBuilder setBaseUrl(String url) {
         this.baseUrl = url;
+        return this;
+    }
+
+    public AnaChatBuilder setOptionsTextColor(@ColorRes int optionsTextColor) {
+        PreferencesManager.getsInstance(activity).setOptionsTextColor(optionsTextColor);
         return this;
     }
 
     public AnaChatBuilder setFlowId(@NonNull String flowId) {
         if (!flowId.isEmpty()) {
             PreferencesManager.getsInstance(activity).setFlowId(flowId);
+        }
+        return this;
+    }
+
+    public AnaChatBuilder setChatAnimationDelay(int delay) {
+        if(delay > 0 ){
+            PreferencesManager.getsInstance(activity).setAnimationBubbleDelay(delay);
         }
         return this;
     }

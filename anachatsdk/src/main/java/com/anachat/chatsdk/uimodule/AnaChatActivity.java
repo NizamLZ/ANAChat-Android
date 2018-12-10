@@ -1,6 +1,7 @@
 package com.anachat.chatsdk.uimodule;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
@@ -35,6 +36,7 @@ import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.text.Editable;
 import android.text.InputType;
+import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -48,6 +50,7 @@ import android.widget.DatePicker;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.RelativeLayout;
+import android.widget.SearchView;
 import android.widget.TextView;
 import android.widget.TimePicker;
 import android.widget.Toast;
@@ -133,6 +136,7 @@ public class AnaChatActivity extends AppCompatActivity
     //    private Menu menu;
 //    private int selectionCount;
     private Button btnAction;
+    private int animationDelay;
     private RecyclerView rvOptions;
     private RelativeLayout input;
     private ImageView ivSend;
@@ -141,6 +145,7 @@ public class AnaChatActivity extends AppCompatActivity
     private TextView tvDesc;
     private ImageView ivOnline;
     private OptionsAdapter optionsAdapter;
+    private InputListOptionsAdapter inputListOptionsAdapter;
     private Boolean isFirstHistoryLoaded = false;
     private static final int LOCATION_PERMISSION_REQUEST = 10;
     private BottomSheetDialog mBottomSheetDialog = null;
@@ -203,6 +208,7 @@ public class AnaChatActivity extends AppCompatActivity
 //        public void onAccuracyChanged(Sensor sensor, int accuracy) {
 //        }
 //    };
+    @SuppressLint("NewApi")
     private void showNoInternet() {
         if (mBottomSheetDialog != null && mBottomSheetDialog.isShowing()) return;
         mBottomSheetDialog = new BottomSheetDialog(this);
@@ -332,6 +338,7 @@ public class AnaChatActivity extends AppCompatActivity
         btnAction.setOnClickListener(this);
         rvOptions = findViewById(R.id.rv_options);
         rvOptions.setLayoutManager(new LinearLayoutManager(this));
+        animationDelay = PreferencesManager.getsInstance(this).getAnimationBubbleDelay();
         StateListDrawable drawable = (StateListDrawable) btnAction.getBackground();
         DrawableContainer.DrawableContainerState drawableContainerState =
                 (DrawableContainer.DrawableContainerState) drawable.getConstantState();
@@ -419,7 +426,7 @@ public class AnaChatActivity extends AppCompatActivity
                             .into(imageView);
                 } else {
                     Uri uri = Uri.fromFile(new File(url));
-                    imageView.setImageURI(uri);
+//                    imageView.setImageURI(uri);
                     Glide.with(AnaChatActivity.this)
                             .load(uri)
                             .apply(new RequestOptions()
@@ -946,7 +953,7 @@ public class AnaChatActivity extends AppCompatActivity
                 message.getMessageType() != Constants.MessageType.INPUT) {
             messagesAdapter.addLoadingIndicator();
             Handler handler = new Handler();
-            handler.postDelayed(() -> messagesAdapter.addToStart(message, true), 1000);
+            handler.postDelayed(() -> messagesAdapter.addToStart(message, true), animationDelay);
         } else {
             messagesAdapter.addToStart(message, true);
         }
@@ -993,6 +1000,7 @@ public class AnaChatActivity extends AppCompatActivity
             updateBottomUIForInputType(lastMessage);
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (resultCode == RESULT_OK && requestCode == Constants.InputType.LOCATION) {
             ListenerManager.getInstance().notifySendLocation(data);
@@ -1001,8 +1009,12 @@ public class AnaChatActivity extends AppCompatActivity
         if (resultCode == RESULT_OK) {
             Uri uri = data.getData();
             String filePath = PathUtil.getPath(this, uri);
+
             if (filePath == null)
                 return;
+            if (AppUtils.memoryOutofBounds(filePath , AnaChatActivity.this))
+                return;
+
             int type = 0;
             if (requestCode == InputIntents.REQUEST_TAKE_GALLERY_VIDEO) {
                 type = Constants.MediaType.VIDEO;
@@ -1147,13 +1159,21 @@ public class AnaChatActivity extends AppCompatActivity
         rangeTimePickerDialog.show();
     }
 
+
     @Override
     public void onTimeSet(TimePicker timePicker, int i, int i1) {
         Input input = new Input();
         Time time =
-                new Time(
-                        String.valueOf(timePicker.getHour()),
-                        String.valueOf(timePicker.getMinute()), "0");
+                null;
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            time = new Time(
+                    String.valueOf(timePicker.getHour()),
+                    String.valueOf(timePicker.getMinute()), "0");
+        }else{
+            time = new Time(
+                    String.valueOf(timePicker.getCurrentHour()),
+                    String.valueOf(timePicker.getCurrentMinute()), "0");
+        }
         input.setTime(time);
         MessageResponse.MessageResponseBuilder responseBuilder
                 = new MessageResponse.MessageResponseBuilder(AnaChatActivity.this);
@@ -1168,7 +1188,7 @@ public class AnaChatActivity extends AppCompatActivity
         com.anachat.chatsdk.internal.model.inputdata.Date date =
                 new com.anachat.chatsdk.internal.model.inputdata.Date(
                         String.valueOf(datePicker.getYear()),
-                        String.valueOf(datePicker.getMonth()), String.valueOf(datePicker.getDayOfMonth()));
+                        String.valueOf(datePicker.getMonth()+1), String.valueOf(datePicker.getDayOfMonth()));
         input.setDate(date);
         MessageResponse.MessageResponseBuilder responseBuilder
                 = new MessageResponse.MessageResponseBuilder(AnaChatActivity.this);
@@ -1339,11 +1359,11 @@ public class AnaChatActivity extends AppCompatActivity
             rvOptions.setVisibility(VISIBLE);
         }
         if (optionsAdapter == null) {
-            optionsAdapter = new OptionsAdapter(imageLoader);
+            optionsAdapter = new OptionsAdapter(imageLoader, AnaChatActivity.this);
             rvOptions.setAdapter(optionsAdapter);
         }
         optionsAdapter.setData(message);
-        if (optionsAdapter.getItemCount() > 3) {
+        if (optionsAdapter.getItemCount() > 5) {
             updateOptionsViewHeight(0);
         } else {
             updateOptionsViewHeight(1);
@@ -1354,8 +1374,8 @@ public class AnaChatActivity extends AppCompatActivity
         ViewGroup.LayoutParams params = rvOptions.getLayoutParams();
         toolbar.setVisibility(VISIBLE);
         if (heightFix == 0) {
-            if (optionsAdapter != null && optionsAdapter.getItemCount() > 3) {
-                params.height = AppUtils.dpToPx(202);
+            if (optionsAdapter != null && optionsAdapter.getItemCount() > 5) {
+                params.height = AppUtils.dpToPx(402);
             }
         } else if (heightFix == 1) {
             params.height = ViewGroup.LayoutParams.WRAP_CONTENT;
@@ -1394,7 +1414,11 @@ public class AnaChatActivity extends AppCompatActivity
                 Color.parseColor(PreferencesManager.getsInstance(this).getThemeColor()));
         GradientDrawable drawable = (GradientDrawable) tvSend.getBackground();
         drawable.setColor(Color.parseColor(PreferencesManager.getsInstance(this).getThemeColor()));
-        tvSend.setBackground(drawable);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+            tvSend.setBackground(drawable);
+        }else{
+            tvSend.setBackgroundDrawable(drawable);
+        }
         tvSend.setOnClickListener(view -> {
             Message message
                     = getLastMessage();
@@ -1471,15 +1495,50 @@ public class AnaChatActivity extends AppCompatActivity
         final RecyclerView rvList = listDialogView.findViewById(R.id.input_list);
         final TextView tvSend = listDialogView.findViewById(R.id.tv_send);
         final TextView tvTittle = listDialogView.findViewById(R.id.tv_title);
+        final SearchView svSearchText = listDialogView.findViewById(R.id.sv_searchtext);
         tvTittle.setBackgroundColor(
                 Color.parseColor(PreferencesManager.getsInstance(this).getThemeColor()));
         GradientDrawable drawable = (GradientDrawable) tvSend.getBackground();
         drawable.setColor(Color.parseColor(PreferencesManager.getsInstance(this).getThemeColor()));
         rvList.setLayoutManager(new
                 LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false));
-        InputListOptionsAdapter inputListOptionsAdapter =
-                new InputListOptionsAdapter(this, message);
+        inputListOptionsAdapter =
+                new InputListOptionsAdapter(this, message, null);
+        svSearchText.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextSubmit(String searchText) {
+                inputListOptionsAdapter =
+                        new InputListOptionsAdapter(AnaChatActivity.this, message, searchText);
+                rvList.setAdapter(inputListOptionsAdapter);
+                inputListOptionsAdapter.notifyDataSetChanged();
+                if (inputListOptionsAdapter.getItemCount() > 10) {
+                    ViewGroup.LayoutParams params = rvList.getLayoutParams();
+                    params.height = AppUtils.dpToPx(250);
+                    rvList.setLayoutParams(params);
+                }
+                svSearchText.clearFocus();
+                hideKeyPad();
+                return false;
+            }
+
+            @Override
+            public boolean onQueryTextChange(String s) {
+                if(TextUtils.isEmpty(s)){
+                    inputListOptionsAdapter =
+                            new InputListOptionsAdapter(AnaChatActivity.this, message, null);
+                    rvList.setAdapter(inputListOptionsAdapter);
+                    inputListOptionsAdapter.notifyDataSetChanged();
+                    if (inputListOptionsAdapter.getItemCount() > 10) {
+                        ViewGroup.LayoutParams params = rvList.getLayoutParams();
+                        params.height = AppUtils.dpToPx(250);
+                        rvList.setLayoutParams(params);
+                    }
+                }
+                return false;
+            }
+        });
         rvList.setAdapter(inputListOptionsAdapter);
+        inputListOptionsAdapter.notifyDataSetChanged();
         if (inputListOptionsAdapter.getItemCount() > 10) {
             ViewGroup.LayoutParams params = rvList.getLayoutParams();
             params.height = AppUtils.dpToPx(250);
@@ -1487,7 +1546,7 @@ public class AnaChatActivity extends AppCompatActivity
         }
         tvSend.setOnClickListener(view -> {
             if (inputListOptionsAdapter.getValues().isEmpty()) {
-                Toast.makeText(this, "Please make Select from List",
+                Toast.makeText(this, "Please select an item from the list",
                         Toast.LENGTH_SHORT).show();
                 return;
             }

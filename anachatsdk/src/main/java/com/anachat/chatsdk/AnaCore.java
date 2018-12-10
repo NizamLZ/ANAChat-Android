@@ -22,10 +22,13 @@ import com.anachat.chatsdk.internal.utils.concurrent.PushConsumer;
 import com.anachat.chatsdk.internal.utils.constants.Constants;
 import com.google.gson.Gson;
 
+import org.json.JSONObject;
+
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 public final class AnaCore {
@@ -150,6 +153,10 @@ public final class AnaCore {
         ListenerManager.getInstance().addMessageChangeListener(locationPickListener);
     }
 
+    public static void addCustomMethodListener(CustomMethodListener customMethodListener) {
+        ListenerManager.getInstance().addCustomMethodListener(customMethodListener);
+    }
+
     public static void addWelcomeMessage(Context context) {
         MessageResponse.MessageResponseBuilder responseBuilder
                 = new MessageResponse.MessageResponseBuilder(context);
@@ -216,6 +223,30 @@ public final class AnaCore {
         responseBuilder.
                 inputLocation(message, input)
                 .build().send();
+    }
+
+    public static void sendDeeplinkEventData(Context context, HashMap<String, String> eventsData, String title, String value)
+    {
+        Message message
+                = getLastMessage(context);
+        message.getMessageInput().setMandatory(Constants.FCMConstants.MANDATORY_TRUE);
+        MessageResponse.MessageResponseBuilder responseBuilder
+                = new MessageResponse.MessageResponseBuilder
+                (context.getApplicationContext().getApplicationContext());
+        MessageResponse messageResponse = responseBuilder.inputTextString(value,
+                message)
+                .build();
+        if (eventsData != null || !eventsData.isEmpty()) {
+            Event event
+                    = new Event();
+            event.setType(21);
+            event.setData(new JSONObject(eventsData).toString());
+            List<Event> events = new ArrayList<>();
+            events.add(event);
+            messageResponse.setEvents(events);
+        }
+        messageResponse.getData().getContent().getInput().setText(title);
+        messageResponse.send();
     }
 }
 

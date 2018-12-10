@@ -16,6 +16,7 @@ import com.anachat.chatsdk.internal.model.Message;
 import com.anachat.chatsdk.internal.model.MessageResponse;
 import com.anachat.chatsdk.internal.model.Option;
 import com.anachat.chatsdk.internal.model.inputdata.Input;
+import com.anachat.chatsdk.internal.utils.ListenerManager;
 import com.anachat.chatsdk.library.R;
 import com.anachat.chatsdk.uimodule.chatuikit.commons.ImageLoader;
 import com.anachat.chatsdk.uimodule.utils.InputIntents;
@@ -104,15 +105,28 @@ public class OptionsAdapterCarouselItem extends RecyclerView.Adapter<OptionsAdap
                         e.printStackTrace();
                     }
                 }
+                else if (option.getType() != null && option.getType() == 3) {
+                    try {
+                        JSONObject jsonObject = new JSONObject(option.getValue());
+                        if (jsonObject.has("url")) {
+                            value = jsonObject.getString("value");
+                            ListenerManager.getInstance().callCustomMethod(imageLoader.getContext(), jsonObject.getString("url"), option.getTitle(), value);
+                        }
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+                }
                 imageLoader.disableOptions();
-                Input input = new Input();
-                input.setVal(value);
-                input.setText(option.getTitle());
-                MessageResponse.MessageResponseBuilder responseBuilder
-                        = new MessageResponse.MessageResponseBuilder(context);
-                responseBuilder.
-                        inputCarousel(input, message)
-                        .build().send();
+                if(option.getType() != 3) {
+                    Input input = new Input();
+                    input.setVal(value);
+                    input.setText(option.getTitle());
+                    MessageResponse.MessageResponseBuilder responseBuilder
+                            = new MessageResponse.MessageResponseBuilder(context);
+                    responseBuilder.
+                            inputCarousel(input, message)
+                            .build().send();
+                }
             }
         });
     }

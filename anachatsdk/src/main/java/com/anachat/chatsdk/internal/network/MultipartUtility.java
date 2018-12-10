@@ -17,6 +17,7 @@ public class MultipartUtility {
     private final String boundary = "*****";
     private final String crlf = "\r\n";
     private final String twoHyphens = "--";
+    private final long fileUploadLimitSize = 12000000;
 
     /**
      * This constructor initializes a new HTTP POST request with content type
@@ -65,6 +66,7 @@ public class MultipartUtility {
      * @param uploadFile a File to be uploaded
      * @throws IOException
      */
+
     public void addFilePart(String fieldName, File uploadFile)
             throws IOException {
         String fileName = uploadFile.getName();
@@ -73,8 +75,15 @@ public class MultipartUtility {
                 fieldName + "\";filename=\"" +
                 fileName + "\"" + this.crlf);
         request.writeBytes(this.crlf);
+        checkForOutofMemoryException(uploadFile);
         byte[] bytes = fullyReadFileToBytes(uploadFile);
         request.write(bytes);
+    }
+
+    public void checkForOutofMemoryException(File f) throws RuntimeException {
+        long size = f.length() ;
+        if(size > fileUploadLimitSize)
+            throw new RuntimeException ("File size too big");
     }
 
     byte[] fullyReadFileToBytes(File f) throws IOException {
